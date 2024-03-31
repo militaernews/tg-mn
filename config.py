@@ -13,3 +13,7 @@ CHANNEL_UA = -1001839268196
 
 DEEPL = os.getenv("DEEPL")
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+HASH = os.getenv("TG_HASH")
+API = os.getenv("TG_ID")
+NUMBER = os.getenv("TG_NUMBER")

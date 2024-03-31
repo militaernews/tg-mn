@@ -1,16 +1,22 @@
 import asyncio
+import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 
-from pyrogram import Client, filters
+from pyrogram import Client, filters, compose, idle
 from pyrogram.enums import ParseMode
 from pyrogram.errors import MessageNotModified
 from pyrogram.types import Message
+
+import config
+from data.lang import GERMAN, languages
+
 from translation import debloat_text, format_text
 
 from config import CHANNEL_BACKUP, CHANNEL_TEST
-from data import get_source, get_source_ids_by_api_id, get_post, set_post, get_account
+from data.db import get_source, get_source_ids_by_api_id, get_post, set_post, get_account
 from model import Post
 
 LOG_FILENAME = rf"./logs/{datetime.now().strftime('%Y-%m-%d')}/{datetime.now().strftime('%H-%M-%S')}.log"
@@ -24,41 +30,34 @@ logging.basicConfig(
 )
 
 
-async def backup_single(client: Client, message: Message) -> int:
-    msg_backup = await client.forward_messages(CHANNEL_BACKUP, message.chat.id, message.id)
-    #   logging.info(f"Backup single", msg_backup.link)
-    return msg_backup.id
-
-
-async def backup_multiple(client: Client, messages: [Message]) -> int:
-    msg_ids = [message.id for message in messages]
-    msg_backup = (await client.forward_messages(CHANNEL_BACKUP, messages[0].chat.id, msg_ids))[0]
-    #  logging.info(f"Backup multiple", msg_backup.link)
-    return msg_backup.id
-
-
 async def main():
-    a = get_account()
-
     app = Client(
-        name=a.name,
-        api_id=a.api_id,
-        api_hash=a.api_hash,
-        phone_number=a.phone_number,
-        #   phone_code=input(f"phone code {a.name}:"),
-        password="area",
+        name="Premium",
+        api_id=config.API,
+        api_hash=config.HASH,
+        phone_number=config.NUMBER,
         parse_mode=ParseMode.HTML
     )
 
-    sources = get_source_ids_by_api_id(a.api_id)  # + [CHANNEL_TEST]
-
-    remove_sources = [CHANNEL_TEST, -1001011817559, -1001123527809]
-
-    for channel_id in remove_sources:
-        while channel_id in sources: sources.remove(channel_id)
-
-    bf = filters.channel & filters.chat(sources) & filters.incoming & ~filters.forwarded
+    bf = filters.channel & filters.chat(GERMAN.channel_id) & filters.incoming
     mf = bf & (filters.photo | filters.video | filters.animation)
+
+    logging.info("-- STARTED // TG-MN  --")
+
+    @app.on_message(
+
+        filters.text & filters.regex(rf"^#{GERMAN.breaking}", re.IGNORECASE))  #bf &
+    async def filter_messages(client, message):
+
+        caption = re.sub(r'#\w+\s|\s{2,}', " ", message.text.html).strip()
+
+        with open(r"./res/de/flags.json", "r", encoding="utf-8") as file:
+            flag_names = json.load(file)
+
+        hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in caption})
+
+        final_caption = f"🚨 #{GERMAN.breaking}\n\n{caption}\n\n#{hashtags}\n{GERMAN.footer}"
+        await client.send_photo(chat_id=message.chat.id, photo="./res/de/breaking.png", caption=final_caption)
 
     @app.on_message(filters.text & bf)
     async def new_text(client: Client, message: Message):
@@ -72,8 +71,7 @@ async def main():
 
         logging.info(f"T X -single {text}", )
 
-        backup_id = await backup_single(client, message)
-        text = format_text(text, message, source, backup_id)
+        text = format_text(text, message, source)
 
         if message.reply_to_message_id is not None:
             reply_post = get_post(message.chat.id, message.reply_to_message_id)
@@ -91,8 +89,8 @@ async def main():
             msg.chat.id,
             msg.id,
             message.chat.id,
+            message.forward_from_message_id,
             message.id,
-            backup_id,
             reply_id,
             text
         ))
@@ -119,7 +117,7 @@ async def main():
 
         logging.info(f"edit text::: {post}", )
 
-        text = format_text(text, message, source, post.backup_id)
+        text = format_text(text, message, source)
         try:
             await client.edit_message_text(post.destination, post.message_id, text, disable_web_page_preview=True)
         except MessageNotModified:
@@ -137,8 +135,7 @@ async def main():
 
         mg = await client.get_media_group(message.chat.id, message.id)
 
-        backup_id = await backup_multiple(client, mg)
-        text = format_text(text, message, source, backup_id)
+        text = format_text(text, message, source)
 
         if message.reply_to_message_id is not None:
             reply_post = get_post(message.chat.id, message.reply_to_message_id)
@@ -158,8 +155,8 @@ async def main():
             msgs[0].chat.id,
             msgs[0].id,
             message.chat.id,
+            message.forward_from_message_id,
             message.id,
-            backup_id,
             reply_id,
             text
         ))
@@ -174,9 +171,8 @@ async def main():
         if not text:
             return
 
-        backup_id = await backup_single(client, message)
-        logging.info(f">>>>>> handle_single {source, message.chat.id, backup_id}")
-        text = format_text(text, message, source, backup_id)
+        logging.info(f">>>>>> handle_single {source, message.chat.id}")
+        text = format_text(text, message, source)
 
         if message.reply_to_message_id is not None:
             reply_post = get_post(message.chat.id, message.reply_to_message_id)
@@ -195,8 +191,8 @@ async def main():
             msg.chat.id,
             msg.id,
             message.chat.id,
+            message.forward_from_message_id,
             message.id,
-            backup_id,
             reply_id,
             text
         ))
@@ -229,7 +225,7 @@ async def main():
         if not text:
             return
 
-        text = format_text(text, message, source, post.backup_id)
+        text = format_text(text, message, source)
 
         try:
             logging.info(f"edit_caption ::::::::::::::::::::: {post}", )
@@ -237,26 +233,11 @@ async def main():
         except MessageNotModified:
             pass
 
-    @app.on_message(filters.command("join"))
-    async def handle_join(client: Client, message: Message):
-        logging.info(f"join by user {message.from_user.id}")
-
-        try:
-            chat = await client.join_chat(message.text.split(" ")[1])
-
-            await message.reply_text(f"Tried to join. Result:\n\n{chat}")
-        except Exception as e:
-            await message.reply_text(f"Tried to join. Error:\n\n{e}")
-
-    @app.on_message(filters.command("leave"))
-    async def handle_join(client: Client, message: Message):
-        logging.info(f"leave by user {message.from_user.id}")
-
-        chat = await client.leave_chat(message.text.split(" ")[1])
-        await message.reply_text(f"Tried to leave. Result:\n\n{chat}")
-
     try:
-        await app.run()
+        print("RUN")
+        await app.start()
+        await idle()
+
     except KeyboardInterrupt:
         pass
 
