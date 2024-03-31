@@ -4,6 +4,7 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta
+from typing import Final
 
 from pyrogram import Client, filters, compose, idle
 from pyrogram.enums import ParseMode
@@ -19,7 +20,7 @@ from config import CHANNEL_BACKUP, CHANNEL_TEST
 from data.db import get_source, get_source_ids_by_api_id, get_post, set_post, get_account
 from model import Post
 
-LOG_FILENAME = rf"./logs/{datetime.now().strftime('%Y-%m-%d')}/{datetime.now().strftime('%H-%M-%S')}.log"
+LOG_FILENAME: Final[str] = rf"./logs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}.log"
 os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
 logging.basicConfig(
     format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
@@ -47,24 +48,31 @@ async def main():
     @app.on_message(
 
         filters.text & filters.regex(rf"^#{GERMAN.breaking}", re.IGNORECASE))  #bf &
-    async def filter_messages(client, message):
+    async def handle_breaking(client: Client, message: Message):
+        await message.delete()
 
-        caption = re.sub(r'#\w+\s|\s{2,}', " ", message.text.html).strip()
-
-        with open(r"./res/de/flags.json", "r", encoding="utf-8") as file:
-            flag_names = json.load(file)
-
-        hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in caption})
-
-        final_caption = f"🚨 #{GERMAN.breaking}\n\n{caption}\n\n#{hashtags}\n{GERMAN.footer}"
-
-        await client.send_photo(chat_id=message.chat.id, photo="./res/de/breaking.png", caption=final_caption)
+        final_caption = f"🚨 #{GERMAN.breaking}\n\n{format_text(message.text.html, GERMAN)}"
+        msg = await client.send_photo(chat_id=message.chat.id, photo=f"./res/{GERMAN.lang_key}/breaking.png",
+                                      caption=final_caption)
 
         for lang in languages:
-            cap = format_text(translate(caption, 0, lang), lang)
-            await client.send_photo(chat_id=message.chat.id, photo=f"./res/{lang.lang_key}/breaking.png", caption=cap)
+            final_caption = f"🚨 #{lang.breaking}\n\n{format_text(translate(message.text.html, lang), lang)}"
 
+            msg = await client.send_photo(chat_id=message.chat.id, photo=f"./res/{lang.lang_key}/breaking.png",
+                                          caption=final_caption)
 
+        # set_post(Post(   ))
+
+    @app.on_message(bf & filters.media & filters.caption & ~filters.media_group)  # bf &
+    async def handle_single(client: Client, message: Message):
+        for lang in languages:
+            final_caption = format_text(translate(message.caption.html, lang), lang)
+
+            msg = await message.copy(chat_id=message.chat.id, caption=final_caption)
+
+            #set_post(Post(   ))
+
+        await message.edit_caption(format_text(message.caption.html, GERMAN))
 
     try:
         print("RUN")
