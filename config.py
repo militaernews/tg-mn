@@ -1,3 +1,4 @@
+import json
 import os
 
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ GROUP_PATTERN = -1001895734902
 
 CHANNEL_UA = -1001839268196
 
-DEEPL = os.getenv("DEEPL")
+DEEPL = json.loads(os.getenv('DEEPL'))
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 HASH = os.getenv("TG_HASH")
