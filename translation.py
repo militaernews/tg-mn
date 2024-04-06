@@ -7,23 +7,23 @@ from deep_translator import GoogleTranslator
 from deepl import QuotaExceededException, SplitSentences
 
 from config import DEEPL
-from data.lang import Destination, GERMAN, languages, Slave
+from data.lang import Language, MASTER, SLAVES
 
 # Load JSON data once
 flags_data = {lang.lang_key: json.load(open(rf"./res/{lang.lang_key}/flags.json", "r", encoding="utf-8")) for lang in
-              [GERMAN] + languages}
+              [MASTER] + SLAVES}
 
 # Compile regex pattern
 pattern = re.compile(r'#\w+\s|\s{2,}')
 
 
-def translate(text: str, slave: Slave) -> str:
-    if slave[1].lang_key_deepl is not None:
+def translate(text: str, lang: Language) -> str:
+    if lang.lang_key_deepl is not None:
         for index in range(len(DEEPL)):
             try:
                 translator = deepl.Translator(DEEPL[index])
                 return translator.translate_text(text,
-                                                 target_lang=slave[1].lang_key_deepl,
+                                                 target_lang=lang.lang_key_deepl,
                                                  split_sentences=SplitSentences.ALL,
                                                  tag_handling="html",
                                                  preserve_formatting=True).text
@@ -32,10 +32,10 @@ def translate(text: str, slave: Slave) -> str:
                 continue
 
     logging.error("--- Falling back to Google ---")
-    return GoogleTranslator(source="de", target=slave[0]).translate(text=text)
+    return GoogleTranslator(source="de", target=lang.lang_key).translate(text=text)
 
 
-def format_text(text: str, lang: Destination) -> str:
+def format_text(text: str, lang: Language) -> str:
     caption = pattern.sub("", text.replace(lang.footer, "")).strip()
     flag_names = flags_data[lang.lang_key]
     hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in caption})

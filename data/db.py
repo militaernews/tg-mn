@@ -9,7 +9,7 @@ from psycopg2 import OperationalError
 from psycopg2.extras import NamedTupleCursor
 
 from config import DATABASE_URL
-from data.lang import GERMAN
+from data.lang import MASTER
 from data.model import Post
 
 conn = psycopg2.connect(DATABASE_URL, cursor_factory=NamedTupleCursor)
@@ -48,13 +48,13 @@ def set_post(post: Post):
         logging.error(f"{inspect.currentframe().f_code.co_name} — DB-Operation failed {repr(e)} - {format_exc()}")
 
 
-def get_posts(master_post_id: int) -> Dict[str, Post]:
+def get_slave_post_ids(master_post_id: int) -> Dict[str, int]:
     try:
         with conn.cursor() as c:
 
             c.execute(
-                "select lang,msg_id from posts where post_id = %s and lang != '%s';",
-                (master_post_id, GERMAN.lang_key),
+                "select lang,msg_id from posts where post_id = %s and lang != %s;",
+                (master_post_id, MASTER.lang_key),
             )
             result = c.fetchmany()
             logging.info(f">>>>>>>>>>>>>>>>>>>>>>>> get_posts >>>>>>>>>>>>>>>>> POSTS: {result}")
