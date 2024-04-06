@@ -1,9 +1,9 @@
 from dataclasses import dataclass
+from typing import Dict, Tuple
 
 
 @dataclass
-class Language:
-    lang_key: str
+class Destination:
     channel_id: int
     footer: str
     breaking: str
@@ -15,10 +15,10 @@ class Language:
     # captcha:str
 
 
-GERMAN = Language(
-    "de",  # German
--1001391125365,
- #   -1001240262412,  # https://t.me/MilitaerNews
+MASTER_KEY = "de",  # German
+MASTER = Destination(
+    -1001391125365,
+    #   -1001240262412,  # https://t.me/MilitaerNews
     "🔰 Abonniere @MilitaerNews\n🔰 Diskutiere im @MNChat",
     "EILMELDUNG",
     "MITTEILUNG",
@@ -27,10 +27,10 @@ GERMAN = Language(
     -1001526741474,  # https://t.me/MNChat
 )
 
+slaves: Dict[str, Destination] = {
+    "en":  # English - en-us
+    Destination(
 
-languages: [Language] = [
-    Language(
-        "en",  # English - en-us
         -1001258430463,  # https://t.me/MilitaryNewsEN
         "🔰 Subscribe to @MilitaryNewsEN\n🔰 Join us @MilitaryChatEN",
         "BREAKING",
@@ -40,8 +40,9 @@ languages: [Language] = [
         -1001382962633,  # https://t.me/MilitaryChatEN
         lang_key_deepl="en-us"
     ),
-    Language(
-        "tr",  # Turkish
+    "tr":  # Turkish
+    Destination(
+
         -1001712502236,  # https://t.me/MilitaryNewsTR
         "🔰 @MilitaryNewsTR'e abone olun",
         "SON_DAKİKA",
@@ -49,8 +50,9 @@ languages: [Language] = [
         "ADVERTISING",
         "MilitaryNewsTR",
     ),
-    Language(
-        "fa",  # Persian
+    "fa":  # Persian
+    Destination(
+
         -1001568841775,  # https://t.me/MilitaryNewsFA
         "\nعضو شوید:\n🔰 @MilitaryNewsFA",
         "خبرفوری",
@@ -58,8 +60,9 @@ languages: [Language] = [
         "تبلیغات",
         "MilitaryNewsFA",
     ),
-    Language(
-        "ru",  # Russian
+    "ru":  # Russian
+    Destination(
+
         -1001330302325,  # https://t.me/MilitaryNewsRU
         "🔰 Подписывайтесь на @MilitaryNewsRU",
         "СРОЧНЫЕ_НОВОСТИ",
@@ -67,8 +70,9 @@ languages: [Language] = [
         "РЕКЛАМА",
         "MilitaryNewsRU",
     ),
-    Language(
-        "pt",  # Portugese - pt-br
+    "pt":  # Portugese - pt-br
+    Destination(
+
         -1001614849485,  # https://t.me/MilitaryNewsBR
         "🔰 Se inscreva no @MilitaryNewsBR",
         "NOTÍCIAS_URGENTES",
@@ -77,8 +81,9 @@ languages: [Language] = [
         "MilitaryNewsBR",
         lang_key_deepl="pt-br"
     ),
-    Language(
-        "es",  # Spanish
+    "es":  # Spanish
+    Destination(
+
         -1001715032604,  # https://t.me/MilitaryNewsES
         "🔰 Suscríbete a @MilitaryNewsES",
         "ÚLTIMA_HORA",
@@ -86,8 +91,9 @@ languages: [Language] = [
         "PUBLICIDAD",
         "MilitaryNewsES",
     ),
-    Language(
-        "fr",  # French
+    "fr":  # French
+    Destination(
+
         -1001337262241,  # https://t.me/MilitaryNewsFR
         "🔰 Abonnez-vous à @MilitaryNewsFR",
         "BREAKING_NEWS",
@@ -95,8 +101,9 @@ languages: [Language] = [
         "PUBLICITÉ",
         "MilitaryNewsFR",
     ),
-    Language(
-        "it",  # Italian
+    "it":  # Italian
+    Destination(
+
         -1001632091535,  # https://t.me/MilitaryNewsITA
         "🔰 iscriviti a @MilitaryNewsITA",
         "ULTIME_NOTIZIE",
@@ -104,8 +111,9 @@ languages: [Language] = [
         "PUBBLICITÀ",
         "MilitaryNewsITA",
     ),
-    Language(
-        "ar",  # Arabic
+    "ar":  # Arabic
+    Destination(
+
         -1001972272205,  # https://t.me/MilitaryNewsAR
         "@MilitaryNewsAR اشترك ب أخبار عسكرية بالعربية 🔰\n",
         "معلومات",
@@ -113,4 +121,6 @@ languages: [Language] = [
         "إعلان",
         "MilitaryNewsAR",
     ),
-]
+}
+
+type Slave= Tuple[str,Destination]
