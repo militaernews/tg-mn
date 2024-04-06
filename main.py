@@ -7,13 +7,16 @@ from typing import Final
 
 from pyrogram import Client, filters, idle
 from pyrogram.enums import ParseMode
-from pyrogram.types import Message
+from pyrogram.types import Message, InputMedia, InputMediaVideo, InputMediaPhoto, InputMediaAnimation
 
 import config
-from data.db import set_post, get_slave_post_ids
+from data.db import set_post, get_slave_post_ids, get_post, update_post_media
 from data.lang import MASTER, SLAVES, SLAVE_DICT
 from data.model import Post, get_filetype
 from translation import format_text, translate
+from utils import get_file_id, get_input_media
+
+
 
 LOG_FILENAME: Final[str] = rf"./logs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}.log"
 os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
@@ -47,10 +50,10 @@ async def main():
         print("handle_breaking")
         await message.delete()
 
-        #todo: what about supporting Breaking with images/videos supplied?
+        # todo: what about supporting Breaking with images/videos supplied?
         # todo: replace LI with actual lang keys
 
-        master_caption = f"🚨 #{MASTER.breaking}\n\n{format_text(message.text.html, MASTER)}"
+        master_caption = f"🚨 #{MASTER.breaking}\n\n{format_text(message.text.html)}"
         master_post = await client.send_photo(chat_id=message.chat.id, photo=f"./res/{MASTER.lang_key}/breaking.png",
                                               caption=master_caption)
         set_post(Post(master_post.id, "li", master_post.id, file_type=get_filetype(master_post.media),
@@ -63,23 +66,32 @@ async def main():
             set_post(Post(master_post.id, "li", slave_post.id, file_type=get_filetype(slave_post.media),
                           file_id=slave_post.photo.file_id))
 
-    @app.on_edited_message(filters.caption)
+    @app.on_edited_message(filters.caption & filters.incoming)
     # fixme: does incoming work for edited??
     # filters.caption & filters.incoming    # bf &
     async def handle_edit(client: Client, message: Message):
         print("handle_edit")
-        # todo: edit media
-        await message.edit_caption(format_text(message.caption.html, MASTER))
+        caption_changed = len(message.caption.html .find(MASTER.footer)) != 0
+        if caption_changed:
+            await message.edit_caption(format_text(message.caption.html))
+            print("editing MASTER")
 
         for lang_key, slave_post_id in get_slave_post_ids(message.id).items():
             lang = SLAVE_DICT[lang_key]
-
             translated_caption = format_text(translate(message.caption.html, lang), lang)
+            old_slave_post = get_post(lang.channel_id, slave_post_id)
+            new_file_id = get_file_id(message)
 
+            # still need to figure out how to remove needless translations here, if caption remained same, but media is different now
 
+            if new_file_id == old_slave_post.file_id:
+                return await client.edit_message_caption(chat_id=lang.channel_id, message_id=slave_post_id,
+                                                         caption=translated_caption)
 
-            slave_post = await client.edit_message_caption(chat_id=message.chat.id, message_id=slave_post_id,
-                                                           caption=translated_caption)
+            slave_post = await client.edit_message_media(chat_id=lang.channel_id, message_id=slave_post_id,
+                                                         media=get_input_media(message, translated_caption))
+
+            update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media), get_file_id(slave_post))
             print(slave_post)
 
     @app.on_message(bf & filters.media & filters.caption & ~filters.media_group & filters.incoming)  # bf &

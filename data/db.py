@@ -15,8 +15,6 @@ from data.model import Post
 conn = psycopg2.connect(DATABASE_URL, cursor_factory=NamedTupleCursor)
 
 
-
-
 def print_psycopg2_exception(err):
     err_type, err_obj, traceback = sys.exc_info()
 
@@ -39,6 +37,20 @@ def set_post(post: Post):
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);""",
                       (post.post_id, post.lang, post.msg_id, post.media_group_id, post.reply_id, post.file_type,
                        post.file_id, post.text))
+        conn.commit()
+
+    except Exception or OperationalError as err:
+        print_psycopg2_exception(err)
+        conn.rollback()
+    except Exception as e:
+        logging.error(f"{inspect.currentframe().f_code.co_name} — DB-Operation failed {repr(e)} - {format_exc()}")
+
+
+def update_post_media(lang: str, msg_id: int, file_type: int, file_id: str):
+    try:
+        with conn.cursor() as c:
+            c.execute("""UPDATE postsSET file_type = %s,file_id = %s,WHERE lang=%s and msg_id=%s;""",
+                      (file_type, file_id, lang, msg_id,))
         conn.commit()
 
     except Exception or OperationalError as err:

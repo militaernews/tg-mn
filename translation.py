@@ -35,7 +35,7 @@ def translate(text: str, lang: Language) -> str:
     return GoogleTranslator(source="de", target=lang.lang_key).translate(text=text)
 
 
-def format_text(text: str, lang: Language) -> str:
+def format_text(text: str, lang: Language = MASTER) -> str:
     caption = pattern.sub("", text.replace(lang.footer, "")).strip()
     flag_names = flags_data[lang.lang_key]
     hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in caption})
