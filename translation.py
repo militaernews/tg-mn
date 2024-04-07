@@ -38,9 +38,11 @@ def translate(text: str, lang: Language) -> str:
 
 def format_text(text: str, lang: Language = MASTER) -> str:
     caption = HASHTAG_PATTERN.sub("", text.replace(lang.footer, "")).strip()
-    flag_names = flags_data[lang.lang_key]
 
-    hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in FLAG_PATTERN.findall(caption)})
-    formatted = f"{caption}\n\n#{hashtags}\n{lang.footer}"
+    flags_in_caption = set(FLAG_PATTERN.findall(caption))
+    flag_names = {flags_data[lang.lang_key][flag] for flag in flags_in_caption if flag in flags_data[lang.lang_key]}
+    hashtags = f"#{' #'.join(flag_names)}" if flag_names else ""
+
+    formatted = f"{caption}\n\n{hashtags}\n{lang.footer}"
     logging.info(f">>>>>>>> formatted:\n{formatted}\n")
     return formatted
