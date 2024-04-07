@@ -45,8 +45,6 @@ async def main():
 
     logging.info("-- STARTED // TG-MN  --")
 
-
-
     @app.on_message(
 
         filters.text & filters.regex(rf"^#{MASTER.breaking}", re.IGNORECASE))  #bf &
@@ -65,7 +63,7 @@ async def main():
 
         for lang in SLAVES:
             translated_caption = f"🚨 #{lang.breaking}\n\n{format_text(translate(message.text.html, lang), lang)}"
-            slave_post = await client.send_photo(chat_id= lang.channel_id, photo=f"./res/{lang.lang_key}/breaking.png",
+            slave_post = await client.send_photo(chat_id=lang.channel_id, photo=f"./res/{lang.lang_key}/breaking.png",
                                                  caption=translated_caption)
             set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
                           file_id=slave_post.photo.file_id))
@@ -73,8 +71,8 @@ async def main():
     @app.on_edited_message(bf & filters.caption)
     # fixme: does incoming work for edited??
     # filters.caption & filters.incoming    # bf &
-    async def handle_edit(client: Client, message: Message):
-        print("handle_edit" , message)
+    async def handle_edited_media(client: Client, message: Message):
+        print("handle_edited_media", message)
         caption_changed = MASTER.footer not in message.caption.html
         # todo: and also compare with db entry
         if caption_changed:
@@ -105,15 +103,51 @@ async def main():
 
     @app.on_message(bf & filters.media & filters.caption & ~filters.media_group & filters.incoming)  # bf &
     async def handle_single(client: Client, message: Message):
-        print("handle_single")
+        print("handle_single", message)
         for slave in SLAVES:
             final_caption = format_text(translate(message.caption.html, slave), slave)
 
-           # msg = await message.copy(chat_id=message.chat.id, caption=final_caption)
+            slave_post = await message.copy(chat_id=message.chat.id, caption=final_caption)
+            set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                          file_id=slave_post.photo.file_id))
 
             # set_post(Post())
 
-     #   await message.edit_caption(format_text(message.caption.html, MASTER))
+        await message.edit_caption(format_text(message.caption.html, MASTER))
+        set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
+                      file_id=get_file_id(message)))
+
+    @app.on_message(bf & filters.text)
+    async def handle_text(client: Client, message: Message):
+        print("handle_text", message)
+        for slave in SLAVES:
+            translated_text = format_text(translate(message.text.html, slave), slave)
+            slave_post = await client.send_message(chat_id=message.chat.id, text=translated_text)
+            set_post(Post(message.id, slave.lang_key, slave_post.id))
+
+        await message.edit_text(format_text(message.text.html, MASTER))
+        set_post(Post(message.id, MASTER.lang_key, message.id, ))
+
+    @app.on_edited_message(bf & filters.text)
+    # fixme: does incoming work for edited??
+    # filters.caption & filters.incoming    # bf &
+    async def handle_edited_text(client: Client, message: Message):
+        print("handle_edited_text", message)
+        if MASTER.footer in message.text.html:
+            return
+        # todo: and also compare with db entry
+
+        print("editing MASTER text")
+        await message.edit_text(format_text(message.text.html))
+
+        for lang_key, slave_post_id in get_slave_post_ids(message.id).items():
+            lang = SLAVE_DICT[lang_key]
+            translated_text = format_text(translate(message.text.html, lang), lang)
+
+            print("editing SLAVE text")
+            slave_post = await client.edit_message_text(chat_id=lang.channel_id, message_id=slave_post_id,
+                                                        text=translated_text)
+            print(slave_post)
 
     try:
         print("RUN")
