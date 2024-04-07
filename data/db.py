@@ -49,7 +49,7 @@ def set_post(post: Post):
 def update_post_media(lang: str, msg_id: int, file_type: int, file_id: str):
     try:
         with conn.cursor() as c:
-            c.execute("""UPDATE postsSET file_type = %s,file_id = %s,WHERE lang=%s and msg_id=%s;""",
+            c.execute("""UPDATE posts SET file_type=%s,file_id=%s WHERE lang=%s and msg_id=%s;""",
                       (file_type, file_id, lang, msg_id,))
         conn.commit()
 
@@ -80,13 +80,13 @@ def get_slave_post_ids(master_post_id: int) -> Dict[str, int]:
         logging.error(f"{inspect.currentframe().f_code.co_name} — DB-Operation failed {repr(e)} - {format_exc()}")
 
 
-def get_post(source_channel_id: int, source_message_id: int) -> Post:
+def get_file_id(lang_key: str, msg_id: int, ) -> int:
     try:
         with conn.cursor() as c:
-            c.row_factory = NamedTupleCursor
-            c.execute("select * from posts where source_channel_id = %s and source_message_id = %s;",
-                      (source_channel_id, source_message_id))
-            s: Post = c.fetchone()
+
+            c.execute("select file_id from posts where lang = %s and msg_id = %s;",
+                      (lang_key, msg_id))
+            s: int = c.fetchone()[0]
 
             logging.info(f">>>>>>>>>>>>>>>>>>>>>>>> get_post >>>>>>>>>>>>>>>>> POST: {s}", )
 
@@ -97,4 +97,3 @@ def get_post(source_channel_id: int, source_message_id: int) -> Post:
         conn.rollback()
     except Exception as e:
         logging.error(f"{inspect.currentframe().f_code.co_name} — DB-Operation failed {repr(e)} - {format_exc()}")
-        pass

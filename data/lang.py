@@ -18,8 +18,8 @@ class Language:
 
 MASTER = Language(
     "de",  # German
-    -1001391125365,
-    ##   -1001240262412,  # https://t.me/MilitaerNews
+ #   -1001391125365,
+       -1001240262412,  # https://t.me/MilitaerNews
     "🔰 Abonniere @MilitaerNews\n🔰 Diskutiere im @MNChat",
     "EILMELDUNG",
     "MITTEILUNG",
@@ -32,8 +32,8 @@ SLAVES: [Language] = [
 
     Language(
         "en",  # English - en-us
-        -1001391125365,
-      ##  -1001258430463,  # https://t.me/MilitaryNewsEN
+      #  -1001391125365,
+        -1001258430463,  # https://t.me/MilitaryNewsEN
         "🔰 Subscribe to @MilitaryNewsEN\n🔰 Join us @MilitaryChatEN",
         "BREAKING",
         "ANNOUNCEMENT",

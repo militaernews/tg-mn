@@ -1,7 +1,7 @@
 from pyrogram.types import Message, InputMedia, InputMediaPhoto, InputMediaVideo, InputMediaAnimation
 
 
-def get_file_id(message: Message) -> str:
+def extract_file_id(message: Message) -> str:
     if message.photo:
         return message.photo.file_id
     elif message.video:

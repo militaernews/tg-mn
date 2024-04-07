@@ -14,7 +14,8 @@ flags_data = {lang.lang_key: json.load(open(rf"./res/{lang.lang_key}/flags.json"
               [MASTER] + SLAVES}
 
 # Compile regex pattern
-pattern = re.compile(r'#\w+\s|\s{2,}')
+HASHTAG_PATTERN = re.compile(r'\s{2,}?(#\w+\s)+', re.IGNORECASE)
+FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', re.UNICODE)
 
 
 def translate(text: str, lang: Language) -> str:
@@ -32,13 +33,14 @@ def translate(text: str, lang: Language) -> str:
                 continue
 
     logging.error("--- Falling back to Google ---")
-    return GoogleTranslator(source="de", target=lang.lang_key).translate(text=text)
+    return GoogleTranslator(source=MASTER.lang_key, target=lang.lang_key).translate(text=text)
 
 
 def format_text(text: str, lang: Language = MASTER) -> str:
-    caption = pattern.sub("", text.replace(lang.footer, "")).strip()
+    caption = HASHTAG_PATTERN.sub("", text.replace(lang.footer, "")).strip()
     flag_names = flags_data[lang.lang_key]
-    hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in caption})
+
+    hashtags = " #".join({flag_names[flag] for flag in flag_names if flag in FLAG_PATTERN.findall(caption)})
     formatted = f"{caption}\n\n#{hashtags}\n{lang.footer}"
     logging.info(f">>>>>>>> formatted:\n{formatted}\n")
     return formatted
