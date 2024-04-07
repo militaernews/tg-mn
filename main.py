@@ -1,10 +1,10 @@
 import asyncio
+import contextlib
 import logging
 import os
 import re
 import sys
 from datetime import datetime
-from typing import Final
 
 from pyrogram import Client, filters, idle
 from pyrogram.enums import ParseMode
@@ -17,20 +17,27 @@ from data.model import Post, get_filetype
 from translation import format_text, translate
 from utils import get_file_id, get_input_media
 
-LOG_FILENAME: Final[str] = rf"./logs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}.log"
-os.makedirs(os.path.dirname(LOG_FILENAME), exist_ok=True)
-logging.basicConfig(
-    format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
-    encoding="utf-8",
-    filename=LOG_FILENAME,
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+
+def setup_logging():
+    log_filename = f"./logs/{datetime.now().strftime('%Y-%m-%d/%H-%M-%S')}.log"
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
+        encoding="utf-8",
+        filename=log_filename,
+        level=logging.INFO,
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+
+def setup_event_loop_policy():
+    if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 async def main():
-    if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    setup_logging()
+    setup_event_loop_policy()
 
     app = Client(
         name="Premium",
@@ -71,8 +78,8 @@ async def main():
     @app.on_edited_message(bf & filters.caption)
     # fixme: does incoming work for edited??
     # filters.caption & filters.incoming    # bf &
-    async def handle_edited_media(client: Client, message: Message):
-        print("handle_edited_media", message)
+    async def handle_edited_media_caption(client: Client, message: Message):
+        print("handle_edited_media_caption", message)
         caption_changed = MASTER.footer not in message.caption.html
         # todo: and also compare with db entry
         if caption_changed:
@@ -101,7 +108,26 @@ async def main():
             update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media), get_file_id(slave_post))
             print(slave_post)
 
-    @app.on_message(bf & filters.media & filters.caption & ~filters.media_group & filters.incoming)  # bf &
+    @app.on_edited_message(bf & ~filters.caption)
+    # fixme: does incoming work for edited??
+    # filters.caption & filters.incoming    # bf &
+    async def handle_edited_media(client: Client, message: Message):
+        print("handle_edited_media", message)
+
+        for lang_key, slave_post_id in get_slave_post_ids(message.id).items():
+            lang = SLAVE_DICT[lang_key]
+            old_file_id = get_post(lang.channel_id, slave_post_id).file_id
+            new_file_id = get_file_id(message)
+
+            if old_file_id == new_file_id:
+                continue
+
+            print("editing SLAVE media")
+            slave_post = await client.edit_message_media(chat_id=lang.channel_id, message_id=slave_post_id,
+                                                         media=get_input_media(message))
+            update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media), get_file_id(slave_post))
+
+    @app.on_message(bf & mf & filters.caption & ~filters.media_group)
     async def handle_single(client: Client, message: Message):
         print("handle_single", message)
 
@@ -121,6 +147,31 @@ async def main():
         await message.edit_caption(format_text(message.caption.html, MASTER))
         set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
                       file_id=get_file_id(message), reply_id=message.reply_to_message_id))
+
+    @app.on_message(bf & mf & filters.caption & filters.media_group)
+    async def handle_multiple(client: Client, message: Message):
+        print("handle_multiple", message)
+
+        slave_replies = {}
+        if message.reply_to_message_id is not None:
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
+
+        for slave in SLAVES:
+            final_caption = format_text(translate(message.caption.html, slave), slave)
+            reply_id = slave_replies.get(slave.lang_key, None)
+
+            slave_posts = await client.copy_media_group(slave.channel_id, MASTER.channel_id, message.id, final_caption,
+                                                        reply_to_message_id=reply_id)
+
+            for slave_post in slave_posts:
+                set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                              file_id=slave_post.photo.file_id, reply_id=reply_id), )
+
+        await message.edit_caption(format_text(message.caption.html, MASTER))
+        for member in await message.get_media_group():
+            set_post(Post(message.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
+                          file_id=get_file_id(member), reply_id=message.reply_to_message_id,
+                          media_group_id=message.media_group_id))
 
     @app.on_message(bf & filters.text)
     async def handle_text(client: Client, message: Message):
@@ -163,14 +214,11 @@ async def main():
                                                         text=translated_text)
             print(slave_post)
 
-    try:
-        print("RUN")
-        await app.start()
-        await idle()
-
-    except KeyboardInterrupt:
-        pass
+    await app.start()
+    print("RUN")
+    await idle()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(main())
