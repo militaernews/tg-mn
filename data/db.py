@@ -71,6 +71,7 @@ def get_slave_post_ids(master_post_id: int) -> Dict[str, int]:
             result = c.fetchmany()
             logging.info(f">>>>>>>>>>>>>>>>>>>>>>>> get_posts >>>>>>>>>>>>>>>>> POSTS: {result}")
 
+# this may not return a post for all supported languages, if something went wrong when inserting
             return {post[0]: post[1] for post in result}
     except OperationalError as err:
         print_psycopg2_exception(err)
