@@ -43,7 +43,16 @@ SLAVES: [Language] = [
         lang_key_deepl="en-us"
     ),
 
-
+    Language(
+        "id",  # Indonesian - id
+        -1002089283993,  # https://t.me/MilitaryNewsIDN
+        "🔰 Berlangganan @MilitaryNewsIDN\n🔰 Berdiskusi di @MilitaryChatIDN",
+        "BERITA_TERBARU",
+        "KOMUNIKASI",
+        "ADVERTISEMENT",
+        "MilitaryNewsIDN",
+        lang_key_deepl="id"
+    ),
 ]
 
 SLAVE_DICT = {slave.lang_key: slave for slave in SLAVES}
