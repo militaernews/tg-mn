@@ -99,10 +99,89 @@ async def main():
             set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
                           file_id=slave_post.photo.file_id))
 
+    @app.on_message(bf & mf & filters.caption & ~filters.media_group)
+    async def handle_single(client: Client, message: Message):
+        logging.info(f">>>>>> handle_single: {message}", )
+
+        slave_replies = {}
+        if message.reply_to_message_id is not None:
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
+
+        for slave in SLAVES:
+            final_caption = format_text(translate(message.caption.html, slave), slave)
+            reply_id = slave_replies.get(slave.lang_key, None)
+
+            slave_post = await message.copy(chat_id=slave.channel_id, caption=final_caption,
+                                            reply_to_message_id=reply_id)
+            set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                          file_id=slave_post.photo.file_id, reply_id=reply_id), )
+
+        with contextlib.suppress(MessageNotModified):
+            await message.edit_caption(format_text(message.caption.html, MASTER))
+        set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
+                      file_id=extract_file_id(message), reply_id=message.reply_to_message_id))
+
+    @app.on_message(bf & mf & filters.caption & filters.media_group)
+    async def handle_multiple(client: Client, message: Message):
+        logging.info(f">>>>>> handle_multiple: {message}", )
+
+        await sleep(3)
+        mg = await message.get_media_group()
+
+        logging.info(f"MG: {mg}", )
+
+        slave_replies = {}
+        if message.reply_to_message_id is not None:
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
+
+        for slave in SLAVES:
+            final_caption = format_text(translate(message.caption.html, slave), slave)
+            reply_id = slave_replies.get(slave.lang_key, None)
+
+            slave_posts = await client.copy_media_group(slave.channel_id, MASTER.channel_id, message.id, final_caption,
+                                                        reply_to_message_id=reply_id)
+
+            for index, slave_post in enumerate(slave_posts):
+                logging.info(f"slave_post: {slave_post.id} - {slave.lang_key}")
+                set_post(Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                              file_id=extract_file_id(slave_post), reply_id=reply_id))
+
+        logging.info(f"master_post: {message.id}"),
+        with contextlib.suppress(MessageNotModified):
+            await message.edit_caption(format_text(message.caption.html, MASTER))
+        for member in mg:
+            logging.info(f"master_post-member: {member.id}", )
+            set_post(Post(member.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
+                          file_id=extract_file_id(member), reply_id=message.reply_to_message_id,
+                          media_group_id=message.media_group_id))
+
+    @app.on_message(bf & filters.text)
+    async def handle_text(client: Client, message: Message):
+        logging.info(f">>>>>> handle_text: {message}", )
+
+        slave_replies = {}
+        if message.reply_to_message_id is not None:
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
+
+        for slave in SLAVES:
+            translated_text = format_text(translate(message.text.html, slave), slave)
+            reply_id = slave_replies.get(slave.lang_key, None)
+            slave_post = await client.send_message(
+                chat_id=slave.channel_id,
+                text=translated_text,
+                reply_to_message_id=reply_id
+            )
+            set_post(Post(message.id, slave.lang_key, slave_post.id, reply_id=slave_post.reply_to_message_id))
+
+        with contextlib.suppress(MessageNotModified):
+            await message.edit_text(format_text(message.text.html, MASTER))
+        set_post(Post(message.id, MASTER.lang_key, message.id, reply_id=message.reply_to_message_id))
+
     @app.on_edited_message(bf & filters.caption)
     # fixme: does incoming work for edited??
     # filters.caption & filters.incoming
     async def handle_edited_media_caption(client: Client, message: Message):
+        await sleep(5)
         logging.info(f">>>>>> handle_edited_media_caption: {message}", )
         caption_changed = MASTER.footer not in message.caption.html
         # todo: and also compare with db entry
@@ -134,6 +213,7 @@ async def main():
 
     @app.on_edited_message(bf & mf & ~filters.caption)
     async def handle_edited_media(client: Client, message: Message):
+        await sleep(5)
         logging.info(f">>>>>> handle_edited_media: {message}", )
 
         slaves = get_slave_post_ids(message.id)
@@ -156,87 +236,10 @@ async def main():
                                                              media=get_input_media(message))
                 update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media), extract_file_id(slave_post))
 
-    @app.on_message(bf & mf & filters.caption & ~filters.media_group)
-    async def handle_single(client: Client, message: Message):
-        logging.info(f">>>>>> handle_single: {message}", )
-
-        slave_replies = {}
-        if message.reply_to_message_id is not None:
-            slave_replies = get_slave_post_ids(message.reply_to_message_id)
-
-        for slave in SLAVES:
-            final_caption = format_text(translate(message.caption.html, slave), slave)
-            reply_id = slave_replies.get(slave.lang_key, None)
-
-            slave_post = await message.copy(chat_id=slave.channel_id, caption=final_caption,
-                                            reply_to_message_id=reply_id)
-            set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                          file_id=slave_post.photo.file_id, reply_id=reply_id), )
-
-        with contextlib.suppress(MessageNotModified):
-            await message.edit_caption(format_text(message.caption.html, MASTER))
-        set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
-                      file_id=extract_file_id(message), reply_id=message.reply_to_message_id))
-
-    @app.on_message(bf & mf & filters.caption & filters.media_group)
-    async def handle_multiple(client: Client, message: Message):
-        logging.info(f">>>>>> handle_multiple: {message}", )
-
-        await sleep(5)
-        mg = await message.get_media_group()
-
-        logging.info(f"MG: {mg}", )
-
-        slave_replies = {}
-        if message.reply_to_message_id is not None:
-            slave_replies = get_slave_post_ids(message.reply_to_message_id)
-
-        for slave in SLAVES:
-            final_caption = format_text(translate(message.caption.html, slave), slave)
-            reply_id = slave_replies.get(slave.lang_key, None)
-
-            slave_posts = await client.copy_media_group(slave.channel_id, MASTER.channel_id, message.id, final_caption,
-                                                        reply_to_message_id=reply_id)
-
-            for index, slave_post in enumerate(slave_posts):
-                logging.info(f"slave_post: {slave_post.id} - {slave.lang_key}" )
-                set_post(Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                              file_id=extract_file_id(slave_post), reply_id=reply_id))
-
-        logging.info(f"master_post: {message.id}" ),
-        with contextlib.suppress(MessageNotModified):
-            await message.edit_caption(format_text(message.caption.html, MASTER))
-        for member in mg:
-            logging.info(f"master_post-member: {member.id}", )
-            set_post(Post(member.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
-                          file_id=extract_file_id(member), reply_id=message.reply_to_message_id,
-                          media_group_id=message.media_group_id))
-
-    @app.on_message(bf & filters.text)
-    async def handle_text(client: Client, message: Message):
-        logging.info(f">>>>>> handle_text: {message}", )
-
-        slave_replies = {}
-        if message.reply_to_message_id is not None:
-            slave_replies = get_slave_post_ids(message.reply_to_message_id)
-
-        for slave in SLAVES:
-            translated_text = format_text(translate(message.text.html, slave), slave)
-            reply_id = slave_replies.get(slave.lang_key, None)
-            slave_post = await client.send_message(
-                chat_id=slave.channel_id,
-                text=translated_text,
-                reply_to_message_id=reply_id
-            )
-            set_post(Post(message.id, slave.lang_key, slave_post.id, reply_id=slave_post.reply_to_message_id))
-
-        with contextlib.suppress(MessageNotModified):
-            await message.edit_text(format_text(message.text.html, MASTER))
-        set_post(Post(message.id, MASTER.lang_key, message.id, reply_id=message.reply_to_message_id))
-
     @app.on_edited_message(bf & filters.text)
     # fixme: does incoming work for edited??
     async def handle_edited_text(client: Client, message: Message):
+        await sleep(5)
         logging.info(f">>>>>> handle_edited_text: {message}", )
         if MASTER.footer in message.text.html:
             return
