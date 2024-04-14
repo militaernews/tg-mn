@@ -14,7 +14,7 @@ flags_data = {lang.lang_key: json.load(open(rf"./res/{lang.lang_key}/flags.json"
               [MASTER] + SLAVES}
 
 # Compile regex pattern
-HASHTAG_PATTERN = re.compile(r'\s{2,}?(#\w+\s)+', re.IGNORECASE)
+HASHTAG_PATTERN = re.compile(r'(\s{2,})?(#\w+\s)+', re.IGNORECASE)
 FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', re.UNICODE)
 
 
