@@ -19,7 +19,9 @@ FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', r
 
 
 def deepl_translate(text: str, lang: Language) -> str:
+    print(DEEPL)
     for api_key in DEEPL:
+        print(api_key)
         try:
             return deepl.Translator(api_key).translate_text(text,
                                                             target_lang=lang.lang_key_deepl,
@@ -45,7 +47,11 @@ def format_text(text: str, lang: Language = MASTER) -> str:
     caption = HASHTAG_PATTERN.sub("", text.replace(lang.footer, "")).strip()
 
     flags_in_caption = set(FLAG_PATTERN.findall(caption))
-    flag_names = {flags_data[lang.lang_key][flag] for flag in flags_in_caption if flag in flags_data[lang.lang_key]}
+    flag_names = sorted({
+        flags_data[lang.lang_key][flag]
+        for flag in flags_in_caption
+        if flag in flags_data[lang.lang_key]
+    })
     hashtags = f"#{' #'.join(flag_names)}" if flag_names else ""
 
     formatted = f"{caption}\n\n{hashtags}\n{lang.footer}"

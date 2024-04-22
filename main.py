@@ -46,7 +46,7 @@ async def main():
         parse_mode=ParseMode.HTML
     )
 
-    bf = filters.channel & filters.chat(MASTER.channel_id) & filters.incoming & ~filters.forwarded
+    bf = filters.channel & filters.chat(MASTER.channel_id) & filters.incoming & ~filters.forwarded & ~filters.scheduled
     mf = bf & (filters.photo | filters.video | filters.animation)
 
     logging.info("-- STARTED // TG-MN  --")
