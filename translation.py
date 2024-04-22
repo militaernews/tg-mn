@@ -18,21 +18,27 @@ HASHTAG_PATTERN = re.compile(r'(\s{2,})?(#\w+\s)+', re.IGNORECASE)
 FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', re.UNICODE)
 
 
-def translate(text: str, lang: Language) -> str:
-    if lang.lang_key_deepl is not None:
-        for index in range(len(DEEPL)):
-            try:
-                translator = deepl.Translator(DEEPL[index])
-                return translator.translate_text(text,
-                                                 target_lang=lang.lang_key_deepl,
-                                                 split_sentences=SplitSentences.ALL,
-                                                 tag_handling="html",
-                                                 preserve_formatting=True).text
-            except QuotaExceededException:
-                logging.info("--- Quota exceeded. Trying other api key ---")
-                continue
+def deepl_translate(text: str, lang: Language) -> str:
+    for api_key in DEEPL:
+        try:
+            translator = deepl.Translator(api_key)
+            return translator.translate_text(text,
+                                             target_lang=lang.lang_key_deepl,
+                                             split_sentences=SplitSentences.ALL,
+                                             tag_handling="html",
+                                             preserve_formatting=True).text
+        except QuotaExceededException:
+            logging.info("--- Quota exceeded. Trying other api key ---")
+            continue
 
-    logging.error("--- Falling back to Google ---")
+    logging.error("--- All quotas exceeded. Falling back to Google ---")
+
+
+def translate(text: str, lang: Language) -> str:
+    if lang.lang_key_deepl:
+        if translation := deepl_translate(text, lang):
+            return translation
+
     return GoogleTranslator(source=MASTER.lang_key, target=lang.lang_key).translate(text=text)
 
 
