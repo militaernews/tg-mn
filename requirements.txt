@@ -5,3 +5,4 @@ deep-translator==1.11.4
 python-dotenv==1.0.1
 aiopg==1.4.0
 regex==2024.4.16
+pytest==8.1.1

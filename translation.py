@@ -21,12 +21,11 @@ FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', r
 def deepl_translate(text: str, lang: Language) -> str:
     for api_key in DEEPL:
         try:
-            translator = deepl.Translator(api_key)
-            return translator.translate_text(text,
-                                             target_lang=lang.lang_key_deepl,
-                                             split_sentences=SplitSentences.ALL,
-                                             tag_handling="html",
-                                             preserve_formatting=True).text
+            return deepl.Translator(api_key).translate_text(text,
+                                                            target_lang=lang.lang_key_deepl,
+                                                            split_sentences=SplitSentences.ALL,
+                                                            tag_handling="html",
+                                                            preserve_formatting=True).text
         except QuotaExceededException:
             logging.info("--- Quota exceeded. Trying other api key ---")
             continue
