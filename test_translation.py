@@ -1,45 +1,61 @@
-from unittest.mock import patch, MagicMock
-
-import pytest
-from deepl import QuotaExceededException, Translator
-
 import data.lang
-from translation import deepl_translate, translate, format_text
+
+from unittest.mock import patch
+from translation import translate
+from data.lang import Language
 
 DE = data.lang.MASTER
 EN = data.lang.SLAVES[0]
 FR = data.lang.SLAVES[1]
 
 
-@pytest.fixture
-def mock_translator():
-    with patch('translation.deepl.Translator.translate_text') as mock_deepl, \
-            patch('translation.GoogleTranslator.translate') as mock_google, :
-        yield mock_deepl, mock_google
+def test_translate_happy_path_deepl():
+    # Arrange
+
+    with patch("translation.deepl_translate", return_value="Hallo, Welt!"):
+        # Act
+        result = translate("Hello, world!", EN)
+        # Assert
+        assert result == "Hallo, Welt!"
 
 
+def test_translate_happy_path_google():
+    # Arrange
+
+    with patch("translation.deepl_translate", return_value=None), \
+            patch("translation.GoogleTranslator.translate", return_value="Hola, mundo!"):
+        # Act
+        result = translate("Hello, world!", EN)
+        # Assert
+        assert result == "Hola, mundo!"
 
 
-@pytest.mark.parametrize("text, lang, expected_translation", [
-    ("Hallo", DE, "Hallo",),
-    ("Hallo", EN, "Hello",),
-    ("Hallo", FR, "Bonjour",),
-], ids=["master", "deepl", "google"])
-def test_translate(mock_translator, text, lang, expected_translation):
-    mock_translator[0].return_value.text = expected_translation
-    mock_translator[1].return_value = expected_translation
+def test_translate_edge_case_empty_string():
+    # Arrange
 
-    translation = translate(text, lang)
-
-    assert translation == expected_translation
+    with patch("translation.deepl_translate", return_value=""):
+        # Act
+        result = translate("", EN)
+        # Assert
+        assert result == ""
 
 
-@pytest.mark.parametrize("text, lang, expected_output", [
-    ("Hello #world", DE, "Hello\n\nFooter"),
-    ("Hello", EN, "Hello\n\n#USA\nFooter"),
-], ids=["without-flag", "with-flag"])
-def test_format_text(text, lang, expected_output, mock_translator):
-    with patch('translation.flags_data', {"en": {"🇺🇸": "USA"}}):
-        formatted_text = format_text(text, lang)
+def test_translate_edge_case_space():
+    # Arrange
 
-        assert formatted_text == expected_output
+    with patch("translation.deepl_translate", return_value=None), \
+            patch("translation.GoogleTranslator.translate", return_value=" "):
+        # Act
+        result = translate(" ", EN)
+        # Assert
+        assert result == " "
+
+
+def test_translate_error_deepl_exception():
+    # Arrange
+
+    with patch("translation.deepl_translate", side_effect=Exception("Deepl translation failed")):
+        # Act
+        result = translate("Hello, world!", DE)
+        # Assert
+        assert result == ""

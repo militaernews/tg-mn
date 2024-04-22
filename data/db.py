@@ -49,7 +49,7 @@ async def get_slave_post_ids(master_post_id: int) -> Dict[str, int]:
             "select lang,msg_id from posts where post_id = %s and lang != %s;",
             (master_post_id, MASTER.lang_key),
         )
-        result = c.fetchmany()
+        result = await  c.fetchmany()
         logging.info(f">>>>>>>>>>>>>>>>>>>>>>>> get_posts >>>>>>>>>>>>>>>>> POSTS: {result}")
 
         # this may not return a post for all supported languages, if something went wrong when inserting
@@ -60,7 +60,7 @@ async def get_file_id(lang_key: str, msg_id: int, ) -> int:
     async with db_cursor() as c:
         await c.execute("select file_id from posts where lang = %s and msg_id = %s;",
                         (lang_key, msg_id))
-        s: int = c.fetchone()[0]
+        s: int = (await  c.fetchone())[0]
 
     logging.info(f">>>>>>>>>>>>>>>>>>>>>>>> get_post >>>>>>>>>>>>>>>>> POST: {s}", )
 
