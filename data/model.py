@@ -1,8 +1,5 @@
-import logging
 from dataclasses import dataclass
 from typing import Optional
-
-from pyrogram.enums import MessageMediaType
 
 from data.lang import MASTER
 
@@ -19,13 +16,3 @@ class Post:
     text: Optional[str] = None
 
 
-def get_filetype(media: MessageMediaType) -> Optional[int]:
-    if media == MessageMediaType.PHOTO:
-        return 0
-    if media == MessageMediaType.VIDEO:
-        return 1
-    if media == MessageMediaType.ANIMATION:
-        return 2
-    else:
-        logging.error(f"Media {media} is not supported")
-    return None

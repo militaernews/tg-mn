@@ -23,8 +23,8 @@ TR = data.lang.SLAVES[1]
 
 @pytest.fixture(autouse=True)
 def set_up():
-    with patch("translation.DEEPL", ["key1", "key2"]), patch('translation.flags_data', {
-        EN.lang_key: {"🇱🇮": "Liechtenstein", "🏴": "IslamicState"}}):
+    env_dict = {EN.lang_key: {"🇱🇮": "Liechtenstein", "🏴": "IslamicState"}}
+    with patch("translation.DEEPL", ["key1", "key2"]), patch('translation.flags_data', env_dict):
         yield
 
 
