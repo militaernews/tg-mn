@@ -15,9 +15,9 @@ from pyrogram.types import Message
 import config
 from data.db import set_post, get_slave_post_ids, get_file_id, update_post_media
 from data.lang import MASTER, SLAVES, SLAVE_DICT
-from data.model import Post, get_filetype
+from data.model import Post
 from translation import format_text, translate
-from utils import extract_file_id, get_input_media
+from utils import extract_file_id, get_input_media, get_filetype
 
 
 def setup_logging():
