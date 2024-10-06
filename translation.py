@@ -13,7 +13,6 @@ from data.lang import Language, MASTER, SLAVES
 flags_data = {lang.lang_key: json.load(open(rf"./res/{lang.lang_key}/flags.json", "r", encoding="utf-8")) for lang in
               [MASTER] + SLAVES}
 
-# Compile regex pattern
 HASHTAG_PATTERN = re.compile(r'(\s{2,})?(#\w+\s)+', re.IGNORECASE)
 FLAG_PATTERN = re.compile(u'[\U0001F1E6-\U0001F1FF]{2}|\U0001F3F4|\U0001F3F3', re.UNICODE)
 
@@ -34,6 +33,8 @@ def deepl_translate(text: str, lang: Language) -> str:
 
 
 def translate(text: str, lang: Language) -> str:
+    text = re.sub(fr'({FLAG_PATTERN.pattern})\s?(\w)', r'\1 \2', text)
+
     if lang.lang_key_deepl:
         if translation := deepl_translate(text, lang):
             return translation
@@ -43,13 +44,14 @@ def translate(text: str, lang: Language) -> str:
 
 def format_text(text: str, lang: Language = MASTER) -> str:
     caption = HASHTAG_PATTERN.sub("", text.replace(lang.footer, "")).strip()
-    caption = re.sub(fr'({FLAG_PATTERN.pattern})\s?(\w)', r'\1 \2', caption)
 
-    flag_names = sorted(
-        flags_data[lang.lang_key][flag]
-        for flag in FLAG_PATTERN.findall(caption)
+
+    flags_in_caption = set(FLAG_PATTERN.findall(caption))
+    flag_names = sorted({ 
+        flags_data[lang.lang_key][flag] 
+        for flag in flags_in_caption 
         if flag in flags_data[lang.lang_key]
-    )
+    })
     hashtags = f"\n#{' #'.join(flag_names)}" if flag_names else ""
 
     formatted = f"{caption}\n{hashtags}\n{lang.footer}"

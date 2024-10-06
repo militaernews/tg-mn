@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass
@@ -27,7 +28,7 @@ MASTER = Language(
     -1001526741474,  # https://t.me/MNChat
 )
 
-SLAVES: [Language] = [
+SLAVES: List[Language] = [
 
     Language(
         "en",  # English - en-us
