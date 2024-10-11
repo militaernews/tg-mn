@@ -2,11 +2,11 @@ from unittest.mock import patch
 
 import pytest
 from deepl import QuotaExceededException
-from data.lang import Language
-import data.lang
-from translation import translate, format_text
+from src.data.lang import Language
+import src.data.lang
+from src.translation import translate, format_text
 
-DE = data.lang.MASTER
+DE = src.data.lang.MASTER
 EN = Language(
     "en",  # English - en-us
     1,
@@ -18,7 +18,7 @@ EN = Language(
     -1001382962633,  # https://t.me/MilitaryChatEN
     lang_key_deepl="en-us"
 )
-TR = data.lang.SLAVES[1]
+TR = src.data.lang.SLAVES[1]
 
 
 @pytest.fixture(autouse=True)

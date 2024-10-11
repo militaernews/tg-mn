@@ -1,6 +1,5 @@
-pyrogram @ git https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.28.zip
-# pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.28.zip --force-reinstall
-mtprotocrypt==1.2.6.5b0
+PyroTGFork==2.1.33.8
+PyTgCrypto==1.2.7
 deepl==1.19.1
 deep-translator==1.11.4
 python-dotenv==1.0.1
