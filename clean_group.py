@@ -11,16 +11,21 @@ from data.lang import MASTER
 
 STRICT = True
 
+
 def check_cas(user_id: int):
     response = requests.get(f"https://api.cas.chat/check?user_id={user_id}")
-    logging.info(user_id, response.json())
+    logging.info(f"user_id: {user_id} --- response CAS: {response.json()}")
     return response.json()["ok"]
 
 
-async def is_scam(user: User):
-    is_cas_banned = check_cas(user.id)
+def check_tartaros(user_id: int):
+    response = requests.get(f"https://localhost:8080/user/{user_id}")
+    logging.info(f"user_id: {user_id} --- response TARTAROS: {response.json()}")
+    return response.json()["is_banned"]
 
-    return is_cas_banned or user.is_fake or user.is_scam
+
+async def is_scam(user: User):
+    return check_cas(user.id) or check_tartaros(user.id) or user.is_fake or user.is_scam
 
 
 def is_inactive(user: User):
