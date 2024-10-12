@@ -6,3 +6,5 @@ python-dotenv==1.0.1
 aiopg==1.4.0
 regex==2024.9.11
 pytest==8.3.3
+psycopg2-binary~=2.9.9
+requests~=2.32.3

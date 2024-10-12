@@ -13,6 +13,7 @@ from pyrogram.errors import MessageNotModified
 from pyrogram.types import Message
 
 import config
+from clean_group import clear_chat
 from data.db import set_post, get_slave_post_ids, get_file_id, update_post_media
 from data.lang import MASTER, SLAVES, SLAVE_DICT
 from data.model import Post
@@ -278,6 +279,12 @@ async def main():
         for lang_key, slave_post_ids in slave_ids.items():
             lang = SLAVE_DICT[lang_key]
             await client.delete_messages(chat_id=lang.channel_id, message_ids=slave_post_ids)
+
+    @app.on_message(filters.chat(MASTER.group_id) & filters.incoming & ~filters.forwarded & ~filters.scheduled & filters.regex(r"/clean") )
+    async def handle_clean_group   (client: Client, message: Message):
+        await message.delete()
+        if message.from_user.id in config.ADMINS:
+            await clear_chat(client)
 
     await app.start()
     logging.info("RUN")
