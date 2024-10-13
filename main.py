@@ -14,7 +14,7 @@ from pyrogram.types import Message
 
 import config
 from clean_group import clear_chat
-from data.db import get_file_id, get_slave_post_ids, set_post, update_post_media
+from data.db import get_file_id, get_slave_post_ids,  update_post_media
 from data.lang import MASTER, SLAVES, SLAVE_DICT
 from data.model import Post
 from translation import format_text, translate
@@ -36,7 +36,7 @@ def setup_logging():
         format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
         encoding="utf-8",
         filename=log_filename,
-        level=logging.DEBUG,
+        level=logging.INFO,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -112,12 +112,12 @@ def main():
             slave_post = await message.copy(chat_id=slave.channel_id, caption=final_caption,
                                             reply_to_message_id=reply_id)
             set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                          file_id=slave_post.photo.file_id, reply_id=reply_id), )
+                          file_id=slave_post.photo.file_id, reply_id=reply_id, spoiler=slave_post.has_media_spoiler) )
 
         with contextlib.suppress(MessageNotModified):
             await message.edit_caption(format_text(message.caption.html, MASTER))
         set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
-                      file_id=extract_file_id(message), reply_id=message.reply_to_message_id))
+                      file_id=extract_file_id(message), reply_id=message.reply_to_message_id, spoiler=message.has_media_spoiler))
 
     @app.on_message(mf & filters.caption & filters.media_group)
     async def handle_multiple(client: Client, message: Message):
@@ -143,7 +143,7 @@ def main():
                 logging.info(f"slave_post: {slave_post.id} - {slave.lang_key}")
                 set_post(
                     Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                         file_id=extract_file_id(slave_post), reply_id=reply_id))
+                         file_id=extract_file_id(slave_post), reply_id=reply_id,spoiler=slave_post.has_media_spoiler))
 
         logging.info(f"master_post: {message.id}"),
         with contextlib.suppress(MessageNotModified):
@@ -152,7 +152,7 @@ def main():
             logging.info(f"master_post-member: {member.id}", )
             set_post(Post(member.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
                           file_id=extract_file_id(member), reply_id=message.reply_to_message_id,
-                          media_group_id=message.media_group_id))
+                          media_group_id=message.media_group_id,spoiler=message.has_media_spoiler))
 
     @app.on_message(bf & filters.text)
     async def handle_text(client: Client, message: Message):
@@ -213,7 +213,7 @@ def main():
                                                              media=get_input_media(message, translated_caption))
                 update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media),
                                   extract_file_id(slave_post))
-                logging.info(f"editing SLAVE media: {slave_post}", )
+                logging.info(f"edited SLAVE media: {slave_post}", )
 
     @app.on_edited_message(mf & ~filters.caption)
     async def handle_edited_media(client: Client, message: Message):

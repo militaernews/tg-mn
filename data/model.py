@@ -14,5 +14,6 @@ class Post:
     file_type: Optional[int] = None
     file_id: Optional[str] = None
     text: Optional[str] = None
+    spoiler:Optional[bool]=False
 
 

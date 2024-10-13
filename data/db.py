@@ -31,15 +31,16 @@ def db_operation(func):
 @db_operation
 def set_post(c, post: Post):
     c.execute("""INSERT INTO posts(
-            post_id,lang,msg_id,media_group_id,reply_id,file_type,file_id,text
-            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);""",
+            post_id,lang,msg_id,media_group_id,reply_id,file_type,file_id,text,spoiler
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s);""",
               (post.post_id, post.lang, post.msg_id, post.media_group_id, post.reply_id,
                post.file_type,
-               post.file_id, post.text))
+               post.file_id, post.text, post.spoiler))
 
 
 @db_operation
 def update_post_media(c, lang: str, msg_id: int, file_type: int, file_id: str):
+    # todo support spoiler
     c.execute("""UPDATE posts SET file_type=%s,file_id=%s WHERE lang=%s and msg_id=%s;""",
               (file_type, file_id, lang, msg_id,))
 
