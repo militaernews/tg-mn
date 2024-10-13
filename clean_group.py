@@ -9,7 +9,7 @@ from pyrogram.types import User
 
 from data.lang import MASTER
 
-STRICT = True
+STRICT = False
 
 
 def check_cas(user_id: int):

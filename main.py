@@ -3,22 +3,30 @@ import logging
 import os
 import re
 import sys
-from asyncio import sleep, run, set_event_loop_policy, WindowsSelectorEventLoopPolicy
+from asyncio import sleep, set_event_loop_policy, WindowsSelectorEventLoopPolicy
 from datetime import datetime
 from typing import List
 
-from pyrogram import Client, filters, idle
+from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
 from pyrogram.errors import MessageNotModified
 from pyrogram.types import Message
 
 import config
 from clean_group import clear_chat
-from data.db import set_post, get_slave_post_ids, get_file_id, update_post_media
+from data.db import get_file_id, get_slave_post_ids, set_post, update_post_media
 from data.lang import MASTER, SLAVES, SLAVE_DICT
 from data.model import Post
 from translation import format_text, translate
 from utils import extract_file_id, get_input_media, get_filetype
+
+app = Client(
+    name="Premium",
+    api_id=config.API,
+    api_hash=config.HASH,
+    phone_number=config.NUMBER,
+    parse_mode=ParseMode.HTML
+)
 
 
 def setup_logging():
@@ -28,7 +36,7 @@ def setup_logging():
         format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
         encoding="utf-8",
         filename=log_filename,
-        level=logging.INFO,
+        level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -36,17 +44,10 @@ def setup_logging():
 def setup_event_loop_policy():
     if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
         set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+    #  set_event_loop_policy(WindowsProactorEventLoopPolicy())
 
 
-async def main():
-    app = Client(
-        name="Premium",
-        api_id=config.API,
-        api_hash=config.HASH,
-        phone_number=config.NUMBER,
-        parse_mode=ParseMode.HTML
-    )
-
+def main():
     bf = filters.channel & filters.chat(MASTER.channel_id) & filters.incoming & ~filters.forwarded & ~filters.scheduled
     mf = bf & (filters.photo | filters.video | filters.animation)
 
@@ -64,15 +65,15 @@ async def main():
         master_caption = f"🚨 #{MASTER.breaking}\n\n{format_text(message.text.html)}"
         master_post = await client.send_photo(chat_id=message.chat.id, photo=f"./res/{MASTER.lang_key}/breaking.png",
                                               caption=master_caption)
-        await set_post(Post(master_post.id, MASTER.lang_key, master_post.id, file_type=get_filetype(master_post.media),
-                            file_id=master_post.photo.file_id))
+        set_post(Post(master_post.id, MASTER.lang_key, master_post.id, file_type=get_filetype(master_post.media),
+                      file_id=master_post.photo.file_id))
 
         for lang in SLAVES:
             translated_caption = f"🚨 #{lang.breaking}\n\n{format_text(translate(message.text.html, lang), lang)}"
             slave_post = await client.send_photo(chat_id=lang.channel_id, photo=f"./res/{lang.lang_key}/breaking.png",
                                                  caption=translated_caption)
-            await set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                                file_id=slave_post.photo.file_id))
+            set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                          file_id=slave_post.photo.file_id))
 
     @app.on_message(
         bf &
@@ -86,15 +87,15 @@ async def main():
         master_caption = f"📢 #{MASTER.announce}\n\n{format_text(message.text.html)}"
         master_post = await client.send_photo(chat_id=message.chat.id, photo=f"./res/{MASTER.lang_key}/announce.png",
                                               caption=master_caption)
-        await set_post(Post(master_post.id, MASTER.lang_key, master_post.id, file_type=get_filetype(master_post.media),
-                            file_id=master_post.photo.file_id))
+        set_post(Post(master_post.id, MASTER.lang_key, master_post.id, file_type=get_filetype(master_post.media),
+                      file_id=master_post.photo.file_id))
 
         for lang in SLAVES:
             translated_caption = f"📢 #{lang.announce}\n\n{format_text(translate(message.text.html, lang), lang)}"
             slave_post = await client.send_photo(chat_id=lang.channel_id, photo=f"./res/{lang.lang_key}/announce.png",
                                                  caption=translated_caption)
-            await set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                                file_id=slave_post.photo.file_id))
+            set_post(Post(master_post.id, lang.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                          file_id=slave_post.photo.file_id))
 
     @app.on_message(mf & filters.caption & ~filters.media_group)
     async def handle_single(client: Client, message: Message):
@@ -102,7 +103,7 @@ async def main():
 
         slave_replies = {}
         if message.reply_to_message_id is not None:
-            slave_replies = await get_slave_post_ids(message.reply_to_message_id)
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
 
         for slave in SLAVES:
             final_caption = format_text(translate(message.caption.html, slave), slave)
@@ -110,13 +111,13 @@ async def main():
 
             slave_post = await message.copy(chat_id=slave.channel_id, caption=final_caption,
                                             reply_to_message_id=reply_id)
-            await set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
-                                file_id=slave_post.photo.file_id, reply_id=reply_id), )
+            set_post(Post(message.id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                          file_id=slave_post.photo.file_id, reply_id=reply_id), )
 
         with contextlib.suppress(MessageNotModified):
             await message.edit_caption(format_text(message.caption.html, MASTER))
-        await set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
-                            file_id=extract_file_id(message), reply_id=message.reply_to_message_id))
+        set_post(Post(message.id, MASTER.lang_key, message.id, file_type=get_filetype(message.media),
+                      file_id=extract_file_id(message), reply_id=message.reply_to_message_id))
 
     @app.on_message(mf & filters.caption & filters.media_group)
     async def handle_multiple(client: Client, message: Message):
@@ -125,11 +126,11 @@ async def main():
         await sleep(3)
         mg = await message.get_media_group()
 
-        logging.info(f"MG: {mg}", )
+        logging.info(f"MG: {mg}" )
 
         slave_replies = {}
         if message.reply_to_message_id is not None:
-            slave_replies = await get_slave_post_ids(message.reply_to_message_id)
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
 
         for slave in SLAVES:
             final_caption = format_text(translate(message.caption.html, slave), slave)
@@ -140,7 +141,7 @@ async def main():
 
             for index, slave_post in enumerate(slave_posts):
                 logging.info(f"slave_post: {slave_post.id} - {slave.lang_key}")
-                await set_post(
+                set_post(
                     Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
                          file_id=extract_file_id(slave_post), reply_id=reply_id))
 
@@ -149,9 +150,9 @@ async def main():
             await message.edit_caption(format_text(message.caption.html, MASTER))
         for member in mg:
             logging.info(f"master_post-member: {member.id}", )
-            await set_post(Post(member.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
-                                file_id=extract_file_id(member), reply_id=message.reply_to_message_id,
-                                media_group_id=message.media_group_id))
+            set_post(Post(member.id, MASTER.lang_key, member.id, file_type=get_filetype(member.media),
+                          file_id=extract_file_id(member), reply_id=message.reply_to_message_id,
+                          media_group_id=message.media_group_id))
 
     @app.on_message(bf & filters.text)
     async def handle_text(client: Client, message: Message):
@@ -159,7 +160,7 @@ async def main():
 
         slave_replies = {}
         if message.reply_to_message_id is not None:
-            slave_replies = await get_slave_post_ids(message.reply_to_message_id)
+            slave_replies = get_slave_post_ids(message.reply_to_message_id)
 
         for slave in SLAVES:
             translated_text = format_text(translate(message.text.html, slave), slave)
@@ -169,11 +170,11 @@ async def main():
                 text=translated_text,
                 reply_to_message_id=reply_id
             )
-            await set_post(Post(message.id, slave.lang_key, slave_post.id, reply_id=slave_post.reply_to_message_id))
+            set_post(Post(message.id, slave.lang_key, slave_post.id, reply_id=slave_post.reply_to_message_id))
 
         with contextlib.suppress(MessageNotModified):
             await message.edit_text(format_text(message.text.html, MASTER))
-        await set_post(Post(message.id, MASTER.lang_key, message.id, reply_id=message.reply_to_message_id))
+        set_post(Post(message.id, MASTER.lang_key, message.id, reply_id=message.reply_to_message_id))
 
     @app.on_edited_message(bf & filters.caption)
     # fixme: does incoming work for edited??
@@ -188,13 +189,13 @@ async def main():
                 await message.edit_caption(format_text(message.caption.html))
                 logging.info("editing MASTER")
 
-        slave_posts = await get_slave_post_ids(message.id)
+        slave_posts = get_slave_post_ids(message.id)
         if slave_posts is None:
             return
 
         for lang_key, slave_post_id in slave_posts.items():
             lang = SLAVE_DICT[lang_key]
-            old_file_id = await get_file_id(lang.lang_key, slave_post_id)
+            old_file_id = get_file_id(lang.lang_key, slave_post_id)
             new_file_id = extract_file_id(message)
 
             if caption_changed:
@@ -210,8 +211,8 @@ async def main():
             with contextlib.suppress(MessageNotModified):
                 slave_post = await client.edit_message_media(chat_id=lang.channel_id, message_id=slave_post_id,
                                                              media=get_input_media(message, translated_caption))
-                await update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media),
-                                        extract_file_id(slave_post))
+                update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media),
+                                  extract_file_id(slave_post))
                 logging.info(f"editing SLAVE media: {slave_post}", )
 
     @app.on_edited_message(mf & ~filters.caption)
@@ -219,14 +220,14 @@ async def main():
         await sleep(5)
         logging.info(f">>>>>> handle_edited_media: {message}", )
 
-        slaves = await get_slave_post_ids(message.id)
+        slaves = get_slave_post_ids(message.id)
         if len(slaves) == 0:
             return
         logging.info(f"slave ids: {slaves}", )
 
         for lang_key, slave_post_id in slaves.items():
             lang = SLAVE_DICT[lang_key]
-            old_file_id = await get_file_id(lang.lang_key, slave_post_id)
+            old_file_id = get_file_id(lang.lang_key, slave_post_id)
             new_file_id = extract_file_id(message)
 
             logging.info(f"slave {lang.lang_key} old: {old_file_id} new: {new_file_id}")
@@ -237,8 +238,8 @@ async def main():
             with contextlib.suppress(MessageNotModified):
                 slave_post = await client.edit_message_media(chat_id=lang.channel_id, message_id=slave_post_id,
                                                              media=get_input_media(message))
-                await update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media),
-                                        extract_file_id(slave_post))
+                update_post_media(lang_key, slave_post_id, get_filetype(slave_post.media),
+                                  extract_file_id(slave_post))
 
     @app.on_edited_message(bf & filters.text)
     # fixme: does incoming work for edited??
@@ -253,7 +254,7 @@ async def main():
         with contextlib.suppress(MessageNotModified):
             await message.edit_text(format_text(message.text.html))
 
-        for lang_key, slave_post_id in (await get_slave_post_ids(message.id)).items():
+        for lang_key, slave_post_id in (get_slave_post_ids(message.id)).items():
             lang = SLAVE_DICT[lang_key]
             translated_text = format_text(translate(message.text.html, lang), lang)
 
@@ -268,7 +269,7 @@ async def main():
         logging.info(f">>>>>> handle_deleted: {messages}", )
         slave_ids = {}
         for message in messages:
-            slaves = await get_slave_post_ids(message.id)
+            slaves = get_slave_post_ids(message.id)
             if len(slaves) == 0:
                 continue
             for lang_key, slave_post_id in slaves.items():
@@ -280,21 +281,21 @@ async def main():
             lang = SLAVE_DICT[lang_key]
             await client.delete_messages(chat_id=lang.channel_id, message_ids=slave_post_ids)
 
-    @app.on_message(filters.chat(MASTER.group_id) & filters.incoming & ~filters.forwarded & ~filters.scheduled & filters.regex(r"/clean") )
-    async def handle_clean_group   (client: Client, message: Message):
+    @app.on_message(
+        filters.chat(MASTER.chat_id) & filters.incoming & ~filters.forwarded & ~filters.scheduled & filters.regex(
+            r"^/clean$"))
+    async def handle_clean_group(client: Client, message: Message):
         await message.delete()
         if message.from_user.id in config.ADMINS:
             await clear_chat(client)
 
-    await app.start()
     logging.info("RUN")
     print("RUNNING...")
-    await idle()
+    app.run()
 
 
 if __name__ == "__main__":
     setup_logging()
-    setup_event_loop_policy()
+    # d   setup_event_loop_policy()
 
-    with contextlib.suppress(KeyboardInterrupt):
-        run(main())
+    main()
