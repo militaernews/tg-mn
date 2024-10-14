@@ -14,7 +14,7 @@ from pyrogram.types import Message
 
 import config
 from clean_group import clear_chat
-from data.db import get_file_id, get_slave_post_ids,  update_post_media
+from data.db import get_file_id, get_slave_post_ids, update_post_media, set_post
 from data.lang import MASTER, SLAVES, SLAVE_DICT
 from data.model import Post
 from translation import format_text, translate
@@ -36,7 +36,7 @@ def setup_logging():
         format="%(asctime)s %(levelname)-5s %(funcName)-20s [%(filename)s:%(lineno)d]: %(message)s",
         encoding="utf-8",
         filename=log_filename,
-        level=logging.INFO,
+        level=logging.DEBUG,
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
