@@ -2,28 +2,28 @@ import logging
 from functools import wraps
 from typing import Dict
 
-from psycopg2 import OperationalError, connect
-from psycopg2.extras import NamedTupleCursor
+
+from psycopg_pool import ConnectionPool
 
 from config import DATABASE_URL
 from data.lang import MASTER
 from data.model import Post
-
-conn = connect(DATABASE_URL, cursor_factory=NamedTupleCursor)
 
 
 def db_operation(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            with conn.cursor() as cursor:
-                result = func(cursor, *args, **kwargs)
-                conn.commit()
-                logging.info(f"{func.__name__} RESULT: {result}")
-                return result
-        except (OperationalError, Exception) as e:
+            with ConnectionPool(DATABASE_URL, open=False) as pool:
+                with pool.connection() as connection:
+                     with connection.cursor() as cursor:
+                        result = func(cursor, *args, **kwargs)
+                connection.commit()
+            logging.info(f"{func.__name__} RESULT: {result}")
+            return result
+        except  Exception as e:
             logging.error(f"{func.__name__} failed: {e}")
-            conn.rollback()
+            connection.rollback()
 
     return wrapper
 

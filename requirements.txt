@@ -1,9 +1,10 @@
-PyroTGFork==2.1.33.10
-PyTgCrypto==1.2.7
+# pip install https://github.com/KurimuzonAkuma/pyrogram/archive/v2.1.30.zip --force-reinstall
+tgcrypto==1.2.5
 deepl==1.19.1
 deep-translator==1.11.4
 python-dotenv==1.0.1
 regex==2024.9.11
 pytest==8.3.3
-psycopg2-binary==2.9.9
+psycopg-pool==3.2.3
+psycopg-binary==3.2.3
 requests==2.32.3

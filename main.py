@@ -142,7 +142,7 @@ def main():
             for index, slave_post in enumerate(slave_posts):
                 logging.info(f"slave_post: {slave_post.id} - {slave.lang_key}")
                 set_post(
-                    Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media),
+                    Post(mg[index].id, slave.lang_key, slave_post.id, file_type=get_filetype(slave_post.media), media_group_id=slave_post.media_group_id,
                          file_id=extract_file_id(slave_post), reply_id=reply_id,spoiler=slave_post.has_media_spoiler))
 
         logging.info(f"master_post: {message.id}"),
@@ -195,7 +195,7 @@ def main():
 
         for lang_key, slave_post_id in slave_posts.items():
             lang = SLAVE_DICT[lang_key]
-            old_file_id = get_file_id(lang.lang_key, slave_post_id)
+            old_file_id = get_file_id(lang_key, slave_post_id)
             new_file_id = extract_file_id(message)
 
             if caption_changed:
