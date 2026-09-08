@@ -9,4 +9,4 @@ RUN python -m pip install -r requirements.txt --force-reinstall
 
 COPY . .
 
-CMD ["python3", "-m" , "main.py"]
+CMD ["python3", "main.py"]

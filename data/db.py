@@ -1,7 +1,7 @@
 import logging
 from functools import wraps
-from typing import Dict
-
+from typing import Dict, List
+from datetime import datetime
 
 from psycopg_pool import ConnectionPool
 
@@ -63,3 +63,26 @@ def get_file_id(c, lang_key: str, msg_id: int, ) -> int:
               (lang_key, msg_id))
     s: int = (c.fetchone())[0]
     return s
+
+
+@db_operation
+def get_pending_queued_posts(c) -> List[dict]:
+    """Posts handed off by ptb-suggest's /synthesize "Veröffentlichen" button,
+    not yet scheduled into the MASTER channel - oldest first (see
+    scheduler.py). Shares the same DB as ptb-suggest/ptb-mn.
+    """
+    c.execute(
+        "select id, html, media from queued_posts "
+        "where handed_off_at is null order by created_at asc"
+    )
+    rows = c.fetchall()
+    return [{"id": row[0], "html": row[1], "media": row[2]} for row in rows]
+
+
+@db_operation
+def mark_queued_post_scheduled(c, post_id: int, scheduled_message_id: int, scheduled_at: datetime) -> None:
+    """Record that a queued post was handed off to Telegram's own scheduler."""
+    c.execute(
+        "update queued_posts set handed_off_at=now(), scheduled_message_id=%s, scheduled_at=%s "
+        "where id=%s",
+        (scheduled_message_id, scheduled_at, post_id))
