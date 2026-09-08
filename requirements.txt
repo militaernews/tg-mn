@@ -1,5 +1,7 @@
 kurigram==2.2.22
-tgcrypto==1.2.5
+# tgcrypto needs a C compiler to build (not present in the python:3.12-slim
+# image these bots run in) - pyrogram falls back to pure-Python crypto fine,
+# just somewhat slower. Same tradeoff tg-nn already made.
 deepl==1.19.1
 deep-translator==1.11.4
 python-dotenv==1.0.1
